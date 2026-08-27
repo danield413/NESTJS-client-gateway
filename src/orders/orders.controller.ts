@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
-import { ORDER_SERVICE } from 'src/config/services';
+import { NATS_SERVICE, ORDER_SERVICE } from 'src/config/services';
 import { OrderPaginationDto } from './dto/order-pagination.dto';
 import {
   catchError,
@@ -26,9 +26,7 @@ import { StatusDto } from './dto/status.dto';
 
 @Controller('orders')
 export class OrdersController {
-  constructor(
-    @Inject(ORDER_SERVICE) private readonly ordersClient: ClientProxy,
-  ) { }
+  constructor(@Inject(NATS_SERVICE) private readonly client: ClientProxy) {}
 
   private toRpcError(error: unknown): string | object {
     if (typeof error === 'string') {
@@ -44,7 +42,7 @@ export class OrdersController {
 
   @Post()
   create(@Body() createOrderDto: CreateOrderDto) {
-    return this.ordersClient.send('createOrder', createOrderDto).pipe(
+    return this.client.send('createOrder', createOrderDto).pipe(
       defaultIfEmpty(null),
       mergeMap((response) => {
         if (response !== null) {
@@ -70,14 +68,14 @@ export class OrdersController {
 
   @Get()
   findAll(@Query() orderPaginationDto: OrderPaginationDto) {
-    return this.ordersClient.send('findAllOrders', orderPaginationDto);
+    return this.client.send('findAllOrders', orderPaginationDto);
   }
 
   @Get('id/:id')
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     try {
       const order = await firstValueFrom<unknown>(
-        this.ordersClient.send('findOneOrder', { id }),
+        this.client.send('findOneOrder', { id }),
       );
 
       return order;
@@ -103,7 +101,7 @@ export class OrdersController {
     @Query() paginationDto: PaginationDto,
   ) {
     try {
-      return this.ordersClient.send('findAllOrders', {
+      return this.client.send('findAllOrders', {
         ...paginationDto,
         status: statusDto.status,
       });
@@ -118,7 +116,7 @@ export class OrdersController {
     @Body() statusDto: StatusDto,
   ) {
     try {
-      return this.ordersClient.send('changeOrderStatus', {
+      return this.client.send('changeOrderStatus', {
         id,
         status: statusDto.status,
       });
