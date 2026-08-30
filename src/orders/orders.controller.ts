@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Body,
   Controller,
@@ -11,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
-import { NATS_SERVICE, ORDER_SERVICE } from 'src/config/services';
+import { NATS_SERVICE } from 'src/config/services';
 import { OrderPaginationDto } from './dto/order-pagination.dto';
 import {
   catchError,
@@ -67,8 +69,15 @@ export class OrdersController {
   }
 
   @Get()
-  findAll(@Query() orderPaginationDto: OrderPaginationDto) {
-    return this.client.send('findAllOrders', orderPaginationDto);
+  async findAll(@Query() orderPaginationDto: OrderPaginationDto) {
+    try {
+      const orders = await firstValueFrom(
+        this.client.send('findAllOrders', orderPaginationDto),
+      );
+      return orders;
+    } catch (error) {
+      throw new RpcException(this.toRpcError(error));
+    }
   }
 
   @Get('id/:id')
